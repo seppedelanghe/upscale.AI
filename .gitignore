@@ -1,0 +1,10 @@
+__pycache__
+outputs
+wandb
+
+*.pth
+*.h5
+*.png
+*.txt
+*.jpg
+*.jpeg
