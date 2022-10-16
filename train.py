@@ -1,3 +1,4 @@
+import argparse
 import os
 import torch
 import torch.nn as nn
@@ -19,24 +20,43 @@ import wandb
 
 matplotlib.style.use('ggplot')
 
-# learning parameters
-image_limit = 500
-batch_size = 64 # batch size, reduce if facing OOM error
-epochs = 100 # number of epochs to train the SRCNN model for
-lr = 0.001 # the learning rate
+
+# argparser
+parser = argparse.ArgumentParser()
+parser.add_argument('--dir', type=str, dest='dir', help='Directory of images for training', required=True)
+parser.add_argument('--val', type=str, dest='val', help='Directory of images for validation', required=True)
+parser.add_argument('--limit', type=int, dest='limit', help='Limit of images to load for training', default=-1)
+parser.add_argument('--img', type=int, dest='size', help='Size of the images to train the model on', default=65)
+parser.add_argument('--epochs', type=int, dest='epochs', help='Number of epochs to train the model for', default=20)
+parser.add_argument('--lr', type=float, dest='lr', help='Learning rate of the optimizer', default=0.001)
+parser.add_argument('--bs', type=int, dest='bs', help='Batch size', default=64)
+parser.add_argument('--wab', action=argparse.BooleanOptionalAction, default=True)
+
+args = parser.parse_args()
+
+# parameters
+train_dir = args.dir
+validation_dir = args.val
+image_limit = args.limit
+img_size = args.img # in pixels => always square (65, 65)
+epochs = args.epochs
+lr = args.lr
+batch_size = args.bs
+wab = args.wab
+
+# auto detect device
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-img_size = 65 # in pixels => always square (65, 65)
-
 # load data
-train_data = SRCNNImageDataset('/home/seppe/Documents/merged/images/', (img_size, img_size), limit=image_limit)
-val_data = SRCNNImageDataset('/home/seppe/Documents/football/test/', (img_size, img_size))
+train_data = SRCNNImageDataset(train_dir, (img_size, img_size), limit=image_limit)
+val_data = SRCNNImageDataset(validation_dir, (img_size, img_size))
 
 # train and validation loaders
 train_loader = DataLoader(train_data, batch_size=batch_size)
 val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=True)
 
-wandb.init(project='upscaler')
+if wab:
+    wandb.init(project='upscaler')
 
 # initialize the model
 model = SRCNN().to(device)
@@ -76,10 +96,11 @@ def train(model, dataloader, epoch):
     final_loss = running_loss / len(dataloader.dataset)
     final_psnr = running_psnr / int(len(train_data)/dataloader.batch_size)
 
-    wandb.log({
-        'training loss': final_loss,
-        'training psnr': final_psnr,
-    }, step=epoch)
+    if wab:
+        wandb.log({
+            'training loss': final_loss,
+            'training psnr': final_psnr,
+        }, step=epoch)
 
     return final_loss, final_psnr
 
@@ -110,15 +131,16 @@ def validate(model, dataloader, epoch):
     final_loss = running_loss/len(dataloader.dataset)
     final_psnr = running_psnr/int(len(val_data)/dataloader.batch_size)
 
-    wandb.log({
-        'validation loss': final_loss,
-        'validation psnr': final_psnr,
-        'validation images': [
-            wandb.Image(f"./outputs/lowres{epoch}.png", caption="lowres"),
-            wandb.Image(f"./outputs/upscaled{epoch}.png", caption="upscaled"),
-            wandb.Image(f"./outputs/original{epoch}.png", caption="original")
-        ]
-    }, step=epoch)
+    if wab:
+        wandb.log({
+            'validation loss': final_loss,
+            'validation psnr': final_psnr,
+            'validation images': [
+                wandb.Image(f"./outputs/lowres{epoch}.png", caption="lowres"),
+                wandb.Image(f"./outputs/upscaled{epoch}.png", caption="upscaled"),
+                wandb.Image(f"./outputs/original{epoch}.png", caption="original")
+            ]
+        }, step=epoch)
 
     return final_loss, final_psnr
 
@@ -149,23 +171,26 @@ def main():
     end = time.time()
     print(f"Finished training in: {((end-start)/60):.3f} minutes")
 
-    # loss plots
-    plt.figure(figsize=(10, 7))
-    plt.plot(train_loss, color='orange', label='train loss')
-    plt.plot(val_loss, color='red', label='validataion loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.savefig('./outputs/loss.png')
+    if not wab:
+        # loss plots
+        plt.figure(figsize=(10, 7))
+        plt.plot(train_loss, color='orange', label='train loss')
+        plt.plot(val_loss, color='red', label='validataion loss')
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.savefig('./outputs/loss.png')
+        plt.show()
 
-    # psnr plots
-    plt.figure(figsize=(10, 7))
-    plt.plot(train_psnr, color='green', label='train PSNR dB')
-    plt.plot(val_psnr, color='blue', label='validataion PSNR dB')
-    plt.xlabel('Epochs')
-    plt.ylabel('PSNR (dB)')
-    plt.legend()
-    plt.savefig('./outputs/psnr.png')
+        # psnr plots
+        plt.figure(figsize=(10, 7))
+        plt.plot(train_psnr, color='green', label='train PSNR dB')
+        plt.plot(val_psnr, color='blue', label='validataion PSNR dB')
+        plt.xlabel('Epochs')
+        plt.ylabel('PSNR (dB)')
+        plt.legend()
+        plt.savefig('./outputs/psnr.png')
+        plt.show()
 
     # save the model to disk
     print('Saving model...')
