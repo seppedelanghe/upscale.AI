@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dir', type=str, dest='dir', help='Directory of images for training', required=True)
 parser.add_argument('--val', type=str, dest='val', help='Directory of images for validation', required=True)
 parser.add_argument('--limit', type=int, dest='limit', help='Limit of images to load for training', default=-1)
-parser.add_argument('--size', type=int, dest='size', help='Size of the images to train the model on', default=65)
+parser.add_argument('--size', type=int, dest='size', help='Size of the images to train the model on', default=33)
 parser.add_argument('--epochs', type=int, dest='epochs', help='Number of epochs to train the model for', default=20)
 parser.add_argument('--lr', type=float, dest='lr', help='Learning rate of the optimizer', default=0.001)
 parser.add_argument('--bs', type=int, dest='bs', help='Batch size', default=64)
@@ -167,6 +167,9 @@ def main():
 
         val_loss.append(val_epoch_loss)
         val_psnr.append(val_epoch_psnr)
+
+        if epoch % 3 == 0:
+            train_data.shuffle() # load different images
 
     end = time.time()
     print(f"Finished training in: {((end-start)/60):.3f} minutes")

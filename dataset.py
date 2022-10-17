@@ -1,4 +1,5 @@
 import os
+import random
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
@@ -25,7 +26,12 @@ class SRCNNImageDataset(Dataset):
 
         self.prepare()
 
+    def shuffle(self):
+        random.shuffle(self.paths)
+        self.prepare()
+
     def prepare(self):
+        self.data .clear()
         n = self.limit if self.limit > 0 else len(self.paths)
         for i in tqdm(range(n), total=n):
             p = self.paths[i]
