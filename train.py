@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dir', type=str, dest='dir', help='Directory of images for training', required=True)
 parser.add_argument('--val', type=str, dest='val', help='Directory of images for validation', required=True)
 parser.add_argument('--limit', type=int, dest='limit', help='Limit of images to load for training', default=-1)
-parser.add_argument('--img', type=int, dest='size', help='Size of the images to train the model on', default=65)
+parser.add_argument('--size', type=int, dest='size', help='Size of the images to train the model on', default=65)
 parser.add_argument('--epochs', type=int, dest='epochs', help='Number of epochs to train the model for', default=20)
 parser.add_argument('--lr', type=float, dest='lr', help='Learning rate of the optimizer', default=0.001)
 parser.add_argument('--bs', type=int, dest='bs', help='Batch size', default=64)
@@ -38,7 +38,7 @@ args = parser.parse_args()
 train_dir = args.dir
 validation_dir = args.val
 image_limit = args.limit
-img_size = args.img # in pixels => always square (65, 65)
+img_size = args.size # in pixels => always square (65, 65)
 epochs = args.epochs
 lr = args.lr
 batch_size = args.bs

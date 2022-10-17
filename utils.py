@@ -21,7 +21,7 @@ def psnr(label: torch.Tensor, outputs: torch.Tensor, max_val: float = 1.0):
         return 20 * math.log10(max_val / rmse)
 
 
-def downscale_image(image: np.ndarray, factor: int = 2, resample = Image.BOX):
+def downscale_image(image: np.ndarray, factor: int = 2, resample = Image.Resampling.BOX):
     curr = image.shape
     to = (curr[0] // factor, curr[1] // factor)
     im = Image.fromarray(image)
