@@ -7,14 +7,14 @@ from PIL import Image, ImageOps
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-model = SRCNN().to(device)
-model.load_state_dict(torch.load('./model.pth'))
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--img', dest='img', help='Path to the image to upscale', required=True)
-parser.add_argument('--size', dest='size', help='Size of the images the model was trained on', default=65)
+parser.add_argument('--size', dest='size', help='Size of the images the model was trained on', default=33)
 parser.add_argument('--dest', dest='dest', help='Destination to save upscaled image', default='./outputs')
+parser.add_argument('--model', dest='model', help='Model to load', default='./checkpoints/best.pth')
 
+
+model = SRCNN().to(device)
 
 def upscale(subimage):
     im = np.array(subimage).astype('float32') / 255
@@ -39,17 +39,22 @@ def main():
     if not os.path.isfile(args.img):
         raise Exception('invalid image path')
 
+    if not os.path.isfile(args.model):
+        raise Exception('invalid model path')
+
+    model.load_state_dict(torch.load(args.model))
+
     image = Image.open(args.img)
     gray = ImageOps.grayscale(image)
-    up = gray.resize((gray.size[0] * 2, gray.size[1] * 2), resample=Image.Resampling.BOX)
+    # up = gray.resize((gray.size[0] * 2, gray.size[1] * 2), resample=Image.Resampling.BOX)
 
-    out = upscale(up)
+    out = upscale(gray)
 
     # make output dir
     os.makedirs(args.dest, exist_ok=True)
 
     # save image
-    up.save(os.path.join(args.dest, 'original.png'))
+    gray.save(os.path.join(args.dest, 'original.png'))
     out.save(os.path.join(args.dest, 'upscaled.png'))
 
 if __name__ == "__main__":

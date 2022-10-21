@@ -1,7 +1,10 @@
-import math
+import math, sys
 import torch
 import numpy as np
+
 from PIL import Image
+from types import ModuleType, FunctionType
+from gc import get_referents
 
 def psnr(label: torch.Tensor, outputs: torch.Tensor, max_val: float = 1.0):
     """
@@ -24,10 +27,7 @@ def psnr(label: torch.Tensor, outputs: torch.Tensor, max_val: float = 1.0):
 def downscale_image(image: np.ndarray, factor: int = 2, resample = Image.Resampling.BOX):
     curr = image.shape
     to = (curr[0] // factor, curr[1] // factor)
-    im = Image.fromarray(image)
-    
-    for _ in range(factor):
-        im = im.resize(to, resample=resample).resize(curr) # scale down and up again
+    im = Image.fromarray(image).resize(to, resample=resample)
 
     return np.array(im)
 
@@ -37,3 +37,29 @@ def divide_image(image: np.ndarray, size: tuple):
     return sliding_window_view(image, size)[::size[0], ::size[1]].reshape((flatspace, *size))
 
 
+BLACKLIST = type, ModuleType, FunctionType
+
+def getsize(obj, f='mb', asint=True):
+    """sum size of object & members."""
+    if isinstance(obj, BLACKLIST):
+        raise TypeError('getsize() does not take argument of type: '+ str(type(obj)))
+    seen_ids = set()
+    size = 0
+    objects = [obj]
+    while objects:
+        need_referents = []
+        for obj in objects:
+            if not isinstance(obj, BLACKLIST) and id(obj) not in seen_ids:
+                seen_ids.add(id(obj))
+                size += sys.getsizeof(obj)
+                need_referents.append(obj)
+        objects = get_referents(*need_referents)
+
+    if f == 'kb':
+        size /= 1e3
+    elif f == 'mb':
+        size /= 1e6
+    elif f == 'gb':
+        size /= 1e9
+    
+    return round(size) if asint else size

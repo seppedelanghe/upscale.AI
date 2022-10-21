@@ -6,6 +6,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
+import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -25,31 +26,37 @@ matplotlib.style.use('ggplot')
 parser = argparse.ArgumentParser()
 parser.add_argument('--dir', type=str, dest='dir', help='Directory of images for training', required=True)
 parser.add_argument('--val', type=str, dest='val', help='Directory of images for validation', required=True)
-parser.add_argument('--limit', type=int, dest='limit', help='Limit of images to load for training', default=-1)
-parser.add_argument('--size', type=int, dest='size', help='Size of the images to train the model on', default=33)
+parser.add_argument('--memlimit', type=int, dest='memlimit', help='Memory limit for loading training data', default=1024)
+parser.add_argument('--cache', action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument('--size', type=int, dest='size', help='Size of the images to train the model on', default=64)
 parser.add_argument('--epochs', type=int, dest='epochs', help='Number of epochs to train the model for', default=20)
 parser.add_argument('--lr', type=float, dest='lr', help='Learning rate of the optimizer', default=0.001)
 parser.add_argument('--bs', type=int, dest='bs', help='Batch size', default=64)
-parser.add_argument('--wab', action=argparse.BooleanOptionalAction, default=True)
+parser.add_argument('--saverate', type=int, dest='saverate', help='Save model every n epochs', default=5)
+parser.add_argument('--shufflerate', type=int, dest='shufflerate', help='Shuffle/load new data every n epochs', default=5)
+parser.add_argument('--wab', action=argparse.BooleanOptionalAction, default=False)
 
 args = parser.parse_args()
 
 # parameters
 train_dir = args.dir
 validation_dir = args.val
-image_limit = args.limit
+mem_limit = args.memlimit
+cache = args.cache
 img_size = args.size # in pixels => always square (65, 65)
 epochs = args.epochs
 lr = args.lr
 batch_size = args.bs
+saverate = args.saverate
+shufflerate = args.shufflerate
 wab = args.wab
 
 # auto detect device
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # load data
-train_data = SRCNNImageDataset(train_dir, (img_size, img_size), limit=image_limit)
-val_data = SRCNNImageDataset(validation_dir, (img_size, img_size))
+train_data = SRCNNImageDataset(train_dir, (img_size, img_size), memlimit=mem_limit, cache=cache)
+val_data = SRCNNImageDataset(validation_dir, (img_size, img_size), cache=cache)
 
 # train and validation loaders
 train_loader = DataLoader(train_data, batch_size=batch_size)
@@ -60,7 +67,7 @@ if wab:
 
 # initialize the model
 model = SRCNN().to(device)
-print(model)
+# print(model)
 
 # optimizer and optim
 optimizer = optim.Adam(model.parameters(), lr=lr) 
@@ -94,7 +101,7 @@ def train(model, dataloader, epoch):
         running_psnr += batch_psnr
 
     final_loss = running_loss / len(dataloader.dataset)
-    final_psnr = running_psnr / int(len(train_data)/dataloader.batch_size)
+    final_psnr = running_psnr / int(len(train_data) / dataloader.batch_size)
 
     if wab:
         wandb.log({
@@ -117,7 +124,7 @@ def validate(model, dataloader, epoch):
             
             outputs = model(lowres)
             loss = criterion(outputs, highres)
-            # add loss of each item (total items in a batch = batch size) 
+            # add loss of each item (total items in a batch = batch size)
             running_loss += loss.item()
             # calculate batch psnr (once every `batch_size` iterations)
             batch_psnr = psnr(highres, outputs)
@@ -147,9 +154,11 @@ def validate(model, dataloader, epoch):
 
 def main():
     os.makedirs('./outputs', exist_ok=True)
+    os.makedirs('./checkpoints', exist_ok=True)
 
     train_loss, val_loss = [], []
     train_psnr, val_psnr = [], []
+    best_psnr = 0.0
     start = time.time()
 
     loop = tqdm(range(epochs), total=epochs, leave=True)
@@ -159,7 +168,8 @@ def main():
 
         loop.set_postfix({
             'Train PSNR': f"{train_epoch_psnr:.3f}",
-            'Val PSNR': f"{val_epoch_psnr:.3f}"
+            'Val PSNR': f"{val_epoch_psnr:.3f}",
+            'RAM': f"{train_data.memory} MB"
         })
 
         train_loss.append(train_epoch_loss)
@@ -168,8 +178,15 @@ def main():
         val_loss.append(val_epoch_loss)
         val_psnr.append(val_epoch_psnr)
 
-        if epoch % 3 == 0:
+        if epoch % shufflerate == 0:
             train_data.shuffle() # load different images
+
+        if epoch % saverate == 0:
+            if np.mean(val_psnr) >= best_psnr:
+                torch.save(model.state_dict(), f"./checkpoints/best.pth")
+                best_psnr = np.mean(val_psnr)
+
+            torch.save(model.state_dict(), f"./checkpoints/{epoch}.pth")
 
     end = time.time()
     print(f"Finished training in: {((end-start)/60):.3f} minutes")
@@ -196,8 +213,8 @@ def main():
         plt.show()
 
     # save the model to disk
-    print('Saving model...')
-    torch.save(model.state_dict(), './model.pth')
+    print('Saving final model...')
+    torch.save(model.state_dict(), './checkpoints/final.pth')
 
 
 if __name__ == "__main__":
