@@ -26,6 +26,7 @@ matplotlib.style.use('ggplot')
 parser = argparse.ArgumentParser()
 parser.add_argument('--dir', type=str, dest='dir', help='Directory of images for training', required=True)
 parser.add_argument('--val', type=str, dest='val', help='Directory of images for validation', required=True)
+parser.add_argument('--gray', action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument('--memlimit', type=int, dest='memlimit', help='Memory limit for loading training data', default=1024)
 parser.add_argument('--cache', action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument('--size', type=int, dest='size', help='Size of the images to train the model on', default=64)
@@ -41,6 +42,7 @@ args = parser.parse_args()
 # parameters
 train_dir = args.dir
 validation_dir = args.val
+gray = args.gray
 mem_limit = args.memlimit
 cache = args.cache
 img_size = args.size # in pixels => always square (65, 65)
@@ -54,9 +56,12 @@ wab = args.wab
 # auto detect device
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+# image shape
+im_shape = (img_size, img_size) if gray else (img_size, img_size, 3)
+
 # load data
-train_data = SRCNNImageDataset(train_dir, (img_size, img_size), memlimit=mem_limit, cache=cache)
-val_data = SRCNNImageDataset(validation_dir, (img_size, img_size), cache=cache)
+train_data = SRCNNImageDataset(train_dir, im_shape, memlimit=mem_limit, cache=cache, grayscale=gray)
+val_data = SRCNNImageDataset(validation_dir, im_shape, cache=cache, grayscale=gray)
 
 # train and validation loaders
 train_loader = DataLoader(train_data, batch_size=batch_size)
@@ -66,7 +71,7 @@ if wab:
     wandb.init(project='upscaler')
 
 # initialize the model
-model = SRCNN().to(device)
+model = SRCNN(gray=gray).to(device)
 # print(model)
 
 # optimizer and optim
@@ -78,7 +83,8 @@ def train(model, dataloader, epoch):
     running_loss = 0.0
     running_psnr = 0.0
 
-    for data in dataloader:
+    loop = tqdm(dataloader, total=len(dataloader))
+    for data in loop:
         image_data = data[0].to(device)
         label = data[1].to(device)
         
@@ -218,4 +224,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from cProfile import Profile
+
+    with Profile() as p:
+        main()
+
+    p.dump_stats('train.prof')

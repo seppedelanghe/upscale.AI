@@ -52,7 +52,7 @@ class SRCNNImageDataset(Dataset):
                 image = grayscale(image)
 
             # split larger image into subset
-            images = divide_image(np.array(image), self.output_size)
+            images = divide_image(np.array(image), self.output_size, self.gray)
 
             # generate lower res. image for each subimg and add to data
             for im in images:
@@ -61,9 +61,9 @@ class SRCNNImageDataset(Dataset):
 
     def make_combo(self, im: np.ndarray):
         lowres = downscale_image(im, self.scale)
-        lowres = lowres.reshape((1, self.output_size[0] // 2, self.output_size[1] // 2)).astype('float32') / 255
+        lowres = lowres.reshape((1 if self.gray else 3, self.output_size[0] // 2, self.output_size[1] // 2)).astype('float32') / 255
 
-        original = im.reshape((1, *self.output_size)).astype('float32') / 255
+        original = im.reshape((1, *self.output_size) if self.gray else (self.output_size[2], self.output_size[0], self.output_size[1])).astype('float32') / 255
         self.data.append((lowres, original))
 
         return lowres, original
@@ -78,7 +78,7 @@ class SRCNNImageDataset(Dataset):
             
             m = math.floor(im.size[0] // self.output_size[0] * im.size[1] // self.output_size[1])
             if idx >= n and idx < n + m:
-                images = divide_image(np.array(im), self.output_size)
+                images = divide_image(np.array(im), self.output_size, self.gray)
                 return self.make_combo(images[idx-n])
 
             n += m

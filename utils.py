@@ -31,10 +31,16 @@ def downscale_image(image: np.ndarray, factor: int = 2, resample = Image.Resampl
 
     return np.array(im)
 
-def divide_image(image: np.ndarray, size: tuple):
+def divide_image(image: np.ndarray, size: tuple, gray = False):
     from numpy.lib.stride_tricks import sliding_window_view
     flatspace = (image.shape[0] // size[0]) * (image.shape[1] // size[1])
-    return sliding_window_view(image, size)[::size[0], ::size[1]].reshape((flatspace, *size))
+    s = sliding_window_view(image, size)
+
+    if not gray:
+        flatspace * 3
+        return s[::size[0], ::size[1], ::size[2]].reshape((flatspace, *size))
+    else:
+        return s[::size[0], ::size[1]].reshape((flatspace, *size))
 
 
 BLACKLIST = type, ModuleType, FunctionType
