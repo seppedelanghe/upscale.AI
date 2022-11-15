@@ -1,4 +1,23 @@
 import argparse
+
+# argparser
+parser = argparse.ArgumentParser()
+parser.add_argument('--dir', type=str, dest='dir', help='Directory of images for training', required=True)
+parser.add_argument('--val', type=str, dest='val', help='Directory of images for validation', required=True)
+parser.add_argument('--gray', action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument('--memlimit', type=int, dest='memlimit', help='Memory limit for loading training data', default=1024)
+parser.add_argument('--cache', action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument('--size', type=int, dest='size', help='Size of the images to train the model on', default=64)
+parser.add_argument('--epochs', type=int, dest='epochs', help='Number of epochs to train the model for', default=20)
+parser.add_argument('--lr', type=float, dest='lr', help='Learning rate of the optimizer', default=0.001)
+parser.add_argument('--bs', type=int, dest='bs', help='Batch size', default=64)
+parser.add_argument('--saverate', type=int, dest='saverate', help='Save model every n epochs', default=5)
+parser.add_argument('--shufflerate', type=int, dest='shufflerate', help='Shuffle/load new data every n epochs', default=5)
+parser.add_argument('--wab', action=argparse.BooleanOptionalAction, default=False)
+
+args = parser.parse_args()
+
+
 import os
 import torch
 import torch.nn as nn
@@ -20,24 +39,6 @@ from utils import psnr
 import wandb
 
 matplotlib.style.use('ggplot')
-
-
-# argparser
-parser = argparse.ArgumentParser()
-parser.add_argument('--dir', type=str, dest='dir', help='Directory of images for training', required=True)
-parser.add_argument('--val', type=str, dest='val', help='Directory of images for validation', required=True)
-parser.add_argument('--gray', action=argparse.BooleanOptionalAction, default=False)
-parser.add_argument('--memlimit', type=int, dest='memlimit', help='Memory limit for loading training data', default=1024)
-parser.add_argument('--cache', action=argparse.BooleanOptionalAction, default=False)
-parser.add_argument('--size', type=int, dest='size', help='Size of the images to train the model on', default=64)
-parser.add_argument('--epochs', type=int, dest='epochs', help='Number of epochs to train the model for', default=20)
-parser.add_argument('--lr', type=float, dest='lr', help='Learning rate of the optimizer', default=0.001)
-parser.add_argument('--bs', type=int, dest='bs', help='Batch size', default=64)
-parser.add_argument('--saverate', type=int, dest='saverate', help='Save model every n epochs', default=5)
-parser.add_argument('--shufflerate', type=int, dest='shufflerate', help='Shuffle/load new data every n epochs', default=5)
-parser.add_argument('--wab', action=argparse.BooleanOptionalAction, default=False)
-
-args = parser.parse_args()
 
 # parameters
 train_dir = args.dir
@@ -91,6 +92,7 @@ def train(model, dataloader, epoch):
         # zero grad the optimizer
         optimizer.zero_grad()
         outputs = model(image_data)
+
         loss = criterion(outputs, label)
 
         # backpropagation
@@ -136,7 +138,8 @@ def validate(model, dataloader, epoch):
             batch_psnr = psnr(highres, outputs)
             running_psnr += batch_psnr
 
-        outputs = outputs.cpu()
+        outputs: torch.Tensor = outputs.cpu()
+
         save_image(outputs, f"./outputs/upscaled{epoch}.png")
         save_image(lowres, f"./outputs/lowres{epoch}.png")
         save_image(highres, f"./outputs/original{epoch}.png")
@@ -224,9 +227,4 @@ def main():
 
 
 if __name__ == "__main__":
-    from cProfile import Profile
-
-    with Profile() as p:
-        main()
-
-    p.dump_stats('train.prof')
+    main()

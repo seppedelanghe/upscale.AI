@@ -9,3 +9,7 @@ wandb
 *.jpg
 *.jpeg
 *.ipynb
+
+*.mp4
+*.mkv
+*.avi

@@ -18,7 +18,7 @@ class SRCNN(nn.Module):
     def forward(self, x):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
+        x = self.conv3(x)
 
         x = self.tran1(x)
         x = self.conv_final(x)

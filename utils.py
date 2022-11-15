@@ -37,7 +37,6 @@ def divide_image(image: np.ndarray, size: tuple, gray = False):
     s = sliding_window_view(image, size)
 
     if not gray:
-        flatspace * 3
         return s[::size[0], ::size[1], ::size[2]].reshape((flatspace, *size))
     else:
         return s[::size[0], ::size[1]].reshape((flatspace, *size))

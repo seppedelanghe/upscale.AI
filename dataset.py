@@ -60,10 +60,13 @@ class SRCNNImageDataset(Dataset):
                 self.data.append((lowres, original))
 
     def make_combo(self, im: np.ndarray):
-        lowres = downscale_image(im, self.scale)
-        lowres = lowres.reshape((1 if self.gray else 3, self.output_size[0] // 2, self.output_size[1] // 2)).astype('float32') / 255
+        lowres: np.ndarray = downscale_image(im, self.scale)
 
-        original = im.reshape((1, *self.output_size) if self.gray else (self.output_size[2], self.output_size[0], self.output_size[1])).astype('float32') / 255
+
+        # reorder dimensions for pytorch
+        lowres = lowres.transpose((2, 0, 1)).astype('float32') / 255
+        original = im.transpose((2, 0, 1)).astype('float32') / 255
+
         self.data.append((lowres, original))
 
         return lowres, original
