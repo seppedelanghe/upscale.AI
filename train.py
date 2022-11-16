@@ -53,6 +53,7 @@ batch_size = args.bs
 saverate = args.saverate
 shufflerate = args.shufflerate
 wab = args.wab
+loadmodel = './checkpoints/final.pth'
 
 # auto detect device
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -73,6 +74,8 @@ if wab:
 
 # initialize the model
 model = SRCNN(gray=gray).to(device)
+if loadmodel:
+    model.load_state_dict(torch.load(loadmodel))
 # print(model)
 
 # optimizer and optim
@@ -105,7 +108,7 @@ def train(model, dataloader, epoch):
         running_loss += loss.item()
 
         # calculate batch psnr (once every `batch_size` iterations)
-        batch_psnr =  psnr(label, outputs)
+        batch_psnr = psnr(label, outputs)
         running_psnr += batch_psnr
 
     final_loss = running_loss / len(dataloader.dataset)

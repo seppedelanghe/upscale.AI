@@ -12,13 +12,14 @@ parser.add_argument('--img', dest='img', help='Path to the image to upscale', re
 parser.add_argument('--size', dest='size', help='Size of the images the model was trained on', default=33)
 parser.add_argument('--dest', dest='dest', help='Destination to save upscaled image', default='./outputs')
 parser.add_argument('--model', dest='model', help='Model to load', default='./checkpoints/best.pth')
+parser.add_argument('--gray', action=argparse.BooleanOptionalAction, default=False)
 
 
 model = SRCNN().to(device)
 
-def upscale(subimage):
+def upscale(subimage, gray: bool = False):
     im = np.array(subimage).astype('float32') / 255
-    im = im.reshape((*im.shape, 1))
+    # im = im.reshape((*im.shape, 1 if gray else 3))
 
     model.eval()
     with torch.no_grad():
@@ -28,9 +29,10 @@ def upscale(subimage):
         out: torch.Tensor = model(im)
     
     # convert image to output
-    out = out.cpu().detach()
-    out = (out.numpy() * 255).astype('uint8').reshape(out.shape[2], out.shape[3], out.shape[1])
-    out: Image = Image.fromarray(out.reshape((out.shape[0], out.shape[1])))
+    out: torch.Tensor = out.cpu().detach().squeeze()
+    out = (out.numpy() * 255).astype('uint8')
+    out = out.transpose((1, 2, 0))
+    out: Image = Image.fromarray(out)
 
     return out
 
@@ -45,16 +47,16 @@ def main():
     model.load_state_dict(torch.load(args.model))
 
     image = Image.open(args.img)
-    gray = ImageOps.grayscale(image)
-    # up = gray.resize((gray.size[0] * 2, gray.size[1] * 2), resample=Image.Resampling.BOX)
+    if args.gray:
+        image = ImageOps.grayscale(image)
 
-    out = upscale(gray)
+    out = upscale(image, args.gray)
 
     # make output dir
     os.makedirs(args.dest, exist_ok=True)
 
     # save image
-    gray.save(os.path.join(args.dest, 'original.png'))
+    image.save(os.path.join(args.dest, 'original.png'))
     out.save(os.path.join(args.dest, 'upscaled.png'))
 
 if __name__ == "__main__":
