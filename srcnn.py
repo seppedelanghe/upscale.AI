@@ -23,3 +23,21 @@ class SRCNN(nn.Module):
         x = self.tran1(x)
         x = self.conv_final(x)
         return x
+
+
+class Denoise(nn.Module):
+    def __init__(self, gray: bool = False):
+        super().__init__()
+
+        self.colorspace = 1 if gray else 3
+
+        self.conv1 = nn.Conv2d(self.colorspace, 64, kernel_size=9, padding=2, padding_mode='replicate')
+        self.conv2 = nn.Conv2d(64, 32, kernel_size=5, padding=2, padding_mode='replicate')
+        self.conv3 = nn.Conv2d(32, self.colorspace, kernel_size=1, padding=2, padding_mode='replicate')
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = self.conv3(x)
+        return x
+

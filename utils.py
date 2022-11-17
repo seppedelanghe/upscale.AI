@@ -24,6 +24,20 @@ def psnr(label: torch.Tensor, outputs: torch.Tensor, max_val: float = 1.0):
         return 20 * math.log10(max_val / rmse)
 
 
+def psnr_loss(outputs, target, goal: int = 50):
+    target = target.cpu()
+    outputs = outputs.cpu()
+    img_diff = outputs - target
+
+    rmse = torch.sqrt(torch.mean((img_diff) ** 2))
+    if rmse == 0:
+        p = goal
+    else:
+        p = 20 * torch.log10(1.0 / rmse)
+
+    return (goal / p) ** 2 - 1
+
+
 def downscale_image(image: np.ndarray, factor: int = 2, resample = Image.Resampling.BOX):
     curr = image.shape
     to = (curr[0] // factor, curr[1] // factor)
@@ -41,6 +55,9 @@ def divide_image(image: np.ndarray, size: tuple, gray = False):
     else:
         return s[::size[0], ::size[1]].reshape((flatspace, *size))
 
+
+def add_noise(inputs: torch.Tensor, mean=0.0, std=1., device='cpu'):
+    return inputs + torch.randn(inputs.size()).to(device) * std + mean
 
 BLACKLIST = type, ModuleType, FunctionType
 
