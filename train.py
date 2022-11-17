@@ -265,13 +265,12 @@ def main():
     loop = tqdm(range(epochs), total=epochs, leave=True)
     for epoch in loop:
         epoch_denoiser_loss = train_denoiser(train_loader, epoch)
-        epoch_upscaler_psnr, epoch_denoiser_psnr = validate(val_loader, epoch)
+        epoch_upscaler_psnr, epoch_denoiser_psnr = validate(val_loader, epoch, 'denoiser')
 
         loop.set_postfix({
             'Denoiser Loss': f"{epoch_denoiser_loss:.6f}",
             'Upscaler PSNR': f"{epoch_upscaler_psnr:.3f}",
             'Denoiser PSNR': f"{epoch_denoiser_psnr:.3f}",
-            'RAM': f"{train_data.memory} MB"
         })
 
         denoise_val_psnr.append(epoch_denoiser_psnr)
